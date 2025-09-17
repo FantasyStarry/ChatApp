@@ -5,6 +5,8 @@ import (
 	"chatapp/controllers"
 	"chatapp/handlers"
 	"chatapp/middleware"
+	"chatapp/repository"
+	"chatapp/service"
 	"log"
 	"strings"
 
@@ -35,10 +37,27 @@ func setupRoutes() *gin.Engine {
 		c.Next()
 	})
 
+	// Initialize repositories
+	userRepo := repository.NewUserRepository(config.DB)
+	chatRoomRepo := repository.NewChatRoomRepository(config.DB)
+	messageRepo := repository.NewMessageRepository(config.DB)
+
+	// Initialize services
+	authService := service.NewAuthService(userRepo)
+	chatRoomService := service.NewChatRoomService(chatRoomRepo, userRepo)
+	messageService := service.NewMessageService(messageRepo, userRepo, chatRoomRepo)
+
+	// Initialize controllers
+	authController := controllers.NewAuthController(authService)
+	chatRoomController := controllers.NewChatRoomController(chatRoomService, messageService)
+
+	// Initialize WebSocket hub with message service
+	handlers.InitializeHub(messageService)
+
 	// Public routes
 	api := r.Group("/api")
 	{
-		api.POST("/login", controllers.Login)
+		api.POST("/login", authController.Login)
 	}
 
 	// Protected routes
@@ -46,13 +65,13 @@ func setupRoutes() *gin.Engine {
 	protected.Use(middleware.AuthMiddleware())
 	{
 		// User routes
-		protected.GET("/profile", controllers.GetProfile)
+		protected.GET("/profile", authController.GetProfile)
 
 		// Chat room routes
-		protected.GET("/chatrooms", controllers.GetChatRooms)
-		protected.POST("/chatrooms", controllers.CreateChatRoom)
-		protected.GET("/chatrooms/:id", controllers.GetChatRoom)
-		protected.GET("/chatrooms/:id/messages", controllers.GetChatRoomMessages)
+		protected.GET("/chatrooms", chatRoomController.GetChatRooms)
+		protected.POST("/chatrooms", chatRoomController.CreateChatRoom)
+		protected.GET("/chatrooms/:id", chatRoomController.GetChatRoom)
+		protected.GET("/chatrooms/:id/messages", chatRoomController.GetChatRoomMessages)
 
 		// WebSocket route
 		protected.GET("/ws/:chatroom_id", handlers.HandleWebSocket)
@@ -76,12 +95,12 @@ func main() {
 	// Run migrations
 	config.MigrateDatabase()
 
-	// Start WebSocket hub
+	// Setup routes (this initializes the hub)
+	r := setupRoutes()
+
+	// Start WebSocket hub after initialization
 	handlers.InitWebSocketUpgrader()
 	go handlers.GlobalHub.Run()
-
-	// Setup routes
-	r := setupRoutes()
 
 	// Start server
 	log.Printf("Server starting on %s", cfg.Server.Port)

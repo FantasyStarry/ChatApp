@@ -3,6 +3,7 @@ package handlers
 import (
 	"chatapp/config"
 	"chatapp/models"
+	"chatapp/service"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -44,6 +45,9 @@ type Hub struct {
 
 	// Chat room specific clients
 	chatRooms map[uint]map[*Client]bool
+
+	// Message service for database operations
+	messageService service.MessageService
 }
 
 type Client struct {
@@ -55,13 +59,14 @@ type Client struct {
 	chatRoomID uint
 }
 
-func NewHub() *Hub {
+func NewHub(messageService service.MessageService) *Hub {
 	return &Hub{
-		broadcast:  make(chan []byte),
-		register:   make(chan *Client),
-		unregister: make(chan *Client),
-		clients:    make(map[*Client]bool),
-		chatRooms:  make(map[uint]map[*Client]bool),
+		broadcast:      make(chan []byte),
+		register:       make(chan *Client),
+		unregister:     make(chan *Client),
+		clients:        make(map[*Client]bool),
+		chatRooms:      make(map[uint]map[*Client]bool),
+		messageService: messageService,
 	}
 }
 
@@ -137,20 +142,12 @@ func (c *Client) readPump() {
 			break
 		}
 
-		// Save message to database
-		message := models.Message{
-			Content:    wsMsg.Content,
-			UserID:     c.userID,
-			ChatRoomID: c.chatRoomID,
-		}
-
-		if err := config.DB.Create(&message).Error; err != nil {
+		// Save message to database using service layer
+		message, err := c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, c.chatRoomID)
+		if err != nil {
 			log.Printf("Failed to save message: %v", err)
 			continue
 		}
-
-		// Load user information for the response
-		config.DB.Preload("User").First(&message, message.ID)
 
 		// Create response message
 		responseMsg := models.WSMessage{
@@ -198,7 +195,13 @@ func (c *Client) writePump() {
 	}
 }
 
-var GlobalHub = NewHub()
+// GlobalHub will be initialized in main.go with proper dependencies
+var GlobalHub *Hub
+
+// InitializeHub initializes the global hub with message service
+func InitializeHub(messageService service.MessageService) {
+	GlobalHub = NewHub(messageService)
+}
 
 func HandleWebSocket(c *gin.Context) {
 	chatRoomIDStr := c.Param("chatroom_id")

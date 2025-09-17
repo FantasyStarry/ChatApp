@@ -1,0 +1,63 @@
+package controllers
+
+import (
+	"chatapp/models"
+	"chatapp/service"
+	"net/http"
+
+	"github.com/gin-gonic/gin"
+)
+
+type AuthController struct {
+	authService service.AuthService
+}
+
+// NewAuthController creates a new auth controller
+func NewAuthController(authService service.AuthService) *AuthController {
+	return &AuthController{
+		authService: authService,
+	}
+}
+
+type LoginRequest struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
+type LoginResponse struct {
+	Token string      `json:"token"`
+	User  models.User `json:"user"`
+}
+
+// Login handles user login
+func (ctrl *AuthController) Login(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, token, err := ctrl.authService.Login(req.Username, req.Password)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, LoginResponse{
+		Token: token,
+		User:  *user,
+	})
+}
+
+// GetProfile returns user profile
+func (ctrl *AuthController) GetProfile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	user, err := ctrl.authService.GetUserProfile(userID.(uint))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, user)
+}
