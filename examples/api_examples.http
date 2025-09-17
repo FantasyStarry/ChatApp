@@ -1,0 +1,57 @@
+// example_usage.http
+// This file contains example HTTP requests for testing the ChatApp API
+// You can use this with VS Code REST Client extension or similar tools
+
+### 1. Login as admin
+POST http://localhost:8080/api/login
+Content-Type: application/json
+
+{
+  "username": "admin",
+  "password": "password123"
+}
+
+###
+// Save the token from above response for use in subsequent requests
+@token = YOUR_JWT_TOKEN_HERE
+
+### 2. Get user profile
+GET http://localhost:8080/api/profile
+Authorization: Bearer {{token}}
+
+### 3. Get all chat rooms
+GET http://localhost:8080/api/chatrooms
+Authorization: Bearer {{token}}
+
+### 4. Get specific chat room (ID 1)
+GET http://localhost:8080/api/chatrooms/1
+Authorization: Bearer {{token}}
+
+### 5. Create new chat room
+POST http://localhost:8080/api/chatrooms
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "My New Room",
+  "description": "A test chat room"
+}
+
+### 6. Get messages from chat room (ID 1)
+GET http://localhost:8080/api/chatrooms/1/messages
+Authorization: Bearer {{token}}
+
+### 7. Get messages with pagination
+GET http://localhost:8080/api/chatrooms/1/messages?limit=10&offset=0
+Authorization: Bearer {{token}}
+
+// WebSocket connection example (use a WebSocket client):
+// ws://localhost:8080/api/ws/1
+// Headers: Authorization: Bearer YOUR_JWT_TOKEN
+
+// WebSocket message format:
+// {
+//   "type": "message",
+//   "content": "Hello, world!",
+//   "chatroom_id": 1
+// }
