@@ -26,4 +26,6 @@ type WSMessage struct {
 	Username   string    `json:"username"`
 	ChatRoomID uint      `json:"chatroom_id"`
 	Timestamp  time.Time `json:"timestamp"`
+	// Authentication fields
+	Token string `json:"token,omitempty"`
 }

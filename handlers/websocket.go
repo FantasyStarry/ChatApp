@@ -4,6 +4,7 @@ import (
 	"chatapp/config"
 	"chatapp/models"
 	"chatapp/service"
+	"chatapp/utils"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -51,12 +52,13 @@ type Hub struct {
 }
 
 type Client struct {
-	hub        *Hub
-	conn       *websocket.Conn
-	send       chan []byte
-	userID     uint
-	username   string
-	chatRoomID uint
+	hub             *Hub
+	conn            *websocket.Conn
+	send            chan []byte
+	userID          uint
+	username        string
+	chatRoomID      uint
+	isAuthenticated bool
 }
 
 func NewHub(messageService service.MessageService) *Hub {
@@ -142,6 +144,23 @@ func (c *Client) readPump() {
 			break
 		}
 
+		// Handle authentication message
+		if wsMsg.Type == "auth" {
+			if err := c.handleAuthMessage(wsMsg); err != nil {
+				log.Printf("Authentication failed for client: %v", err)
+				c.conn.Close()
+				return
+			}
+			continue // Don't broadcast or save auth messages
+		}
+
+		// Check if client is authenticated for non-auth messages
+		if !c.isAuthenticated {
+			log.Printf("Unauthenticated client tried to send message")
+			c.conn.Close()
+			return
+		}
+
 		// Save message to database using service layer
 		message, err := c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, c.chatRoomID)
 		if err != nil {
@@ -164,6 +183,44 @@ func (c *Client) readPump() {
 			c.hub.BroadcastToRoom(c.chatRoomID, msgBytes)
 		}
 	}
+}
+
+// handleAuthMessage processes authentication messages from WebSocket clients
+func (c *Client) handleAuthMessage(wsMsg models.WSMessage) error {
+	// Validate the token
+	claims, err := utils.ValidateToken(wsMsg.Token)
+	if err != nil {
+		return err
+	}
+
+	// Set client authentication details
+	c.userID = claims.UserID
+	c.username = claims.Username
+	c.chatRoomID = wsMsg.ChatRoomID
+	c.isAuthenticated = true
+
+	log.Printf("Client authenticated: user_id=%d, username=%s, chatroom_id=%d",
+		c.userID, c.username, c.chatRoomID)
+
+	// Register the client with the hub after successful authentication
+	c.hub.register <- c
+
+	// Send authentication success response
+	response := models.WSMessage{
+		Type:      "auth_success",
+		Content:   "Authentication successful",
+		Timestamp: time.Now(),
+	}
+
+	if msgBytes, err := json.Marshal(response); err == nil {
+		select {
+		case c.send <- msgBytes:
+		default:
+			close(c.send)
+		}
+	}
+
+	return nil
 }
 
 func (c *Client) writePump() {
@@ -211,18 +268,6 @@ func HandleWebSocket(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get("user_id")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
-		return
-	}
-
-	username, exists := c.Get("username")
-	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Username not found"})
-		return
-	}
-
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
@@ -230,15 +275,17 @@ func HandleWebSocket(c *gin.Context) {
 	}
 
 	client := &Client{
-		hub:        GlobalHub,
-		conn:       conn,
-		send:       make(chan []byte, 256),
-		userID:     userID.(uint),
-		username:   username.(string),
-		chatRoomID: uint(chatRoomID),
+		hub:             GlobalHub,
+		conn:            conn,
+		send:            make(chan []byte, 256),
+		userID:          0,  // Will be set during authentication
+		username:        "", // Will be set during authentication
+		chatRoomID:      uint(chatRoomID),
+		isAuthenticated: false,
 	}
 
-	client.hub.register <- client
+	// Note: We don't register the client immediately anymore
+	// Registration will happen after successful authentication
 
 	go client.writePump()
 	go client.readPump()

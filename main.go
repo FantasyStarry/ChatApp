@@ -72,10 +72,10 @@ func setupRoutes() *gin.Engine {
 		protected.POST("/chatrooms", chatRoomController.CreateChatRoom)
 		protected.GET("/chatrooms/:id", chatRoomController.GetChatRoom)
 		protected.GET("/chatrooms/:id/messages", chatRoomController.GetChatRoomMessages)
-
-		// WebSocket route
-		protected.GET("/ws/:chatroom_id", handlers.HandleWebSocket)
 	}
+
+	// WebSocket route (no authentication middleware - auth handled via WebSocket messages)
+	api.GET("/ws/:chatroom_id", handlers.HandleWebSocket)
 
 	return r
 }
