@@ -66,6 +66,7 @@ func setupRoutes() *gin.Engine {
 	{
 		// User routes
 		protected.GET("/profile", authController.GetProfile)
+		protected.POST("/logout", authController.Logout)
 
 		// Chat room routes
 		protected.GET("/chatrooms", chatRoomController.GetChatRooms)
