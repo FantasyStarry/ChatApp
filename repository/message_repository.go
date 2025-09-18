@@ -44,7 +44,7 @@ func (r *messageRepository) GetByChatRoomID(chatRoomID uint, limit, offset int) 
 	var messages []models.Message
 	err := r.db.Where("chat_room_id = ?", chatRoomID).
 		Preload("User").
-		Order("created_at DESC").
+		Order("created_at").
 		Limit(limit).
 		Offset(offset).
 		Find(&messages).Error
