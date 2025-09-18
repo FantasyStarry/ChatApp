@@ -67,7 +67,7 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 	// In a stateless JWT system, logout is typically handled client-side
 	// by removing the token from storage. However, we can provide a
 	// server-side endpoint for consistency and future token blacklisting.
-	
+
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
@@ -76,7 +76,7 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 	// Optional: Add any logout-specific business logic here
 	// For example: logging the logout event, clearing user sessions, etc.
-	
+
 	c.JSON(http.StatusOK, gin.H{
 		"message": "Logout successful",
 		"user_id": userID,
