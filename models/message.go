@@ -11,7 +11,8 @@ type Message struct {
 	Content    string         `json:"content" gorm:"not null"`
 	UserID     uint           `json:"user_id"`
 	User       User           `json:"user" gorm:"foreignKey:UserID"`
-ChatRoomID uint           `json:"chat_room_id" gorm:"column:chat_room_id"`
+	ChatRoomID uint           `json:"chat_room_id" gorm:"column:chat_room_id"`
+	Type       string         `json:"type" gorm:"type:varchar(20);default:'message'"` // message or file
 	ChatRoom   ChatRoom       `json:"chatroom,omitempty" gorm:"foreignKey:ChatRoomID"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`

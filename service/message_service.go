@@ -9,6 +9,7 @@ import (
 // MessageService handles message business logic
 type MessageService interface {
 	CreateMessage(content string, userID, chatRoomID uint) (*models.Message, error)
+	CreateFileMessage(content string, userID, chatRoomID uint) (*models.Message, error)
 	GetMessage(id uint) (*models.Message, error)
 	GetChatRoomMessages(chatRoomID uint, limit, offset int) ([]models.Message, error)
 	GetUserMessages(userID uint, limit, offset int) ([]models.Message, error)
@@ -55,11 +56,46 @@ func (s *messageService) CreateMessage(content string, userID, chatRoomID uint) 
 		Content:    content,
 		UserID:     userID,
 		ChatRoomID: chatRoomID,
+		Type:       "message",
 	}
 
 	err = s.messageRepo.Create(message)
 	if err != nil {
 		return nil, errors.New("failed to create message")
+	}
+
+	// Return message with user and chat room information
+	return s.messageRepo.GetByID(message.ID)
+}
+
+func (s *messageService) CreateFileMessage(content string, userID, chatRoomID uint) (*models.Message, error) {
+	// Validate content
+	if content == "" {
+		return nil, errors.New("file information is required")
+	}
+
+	// Validate user exists
+	_, err := s.userRepo.GetByID(userID)
+	if err != nil {
+		return nil, errors.New("user not found")
+	}
+
+	// Validate chat room exists
+	_, err = s.chatRoomRepo.GetByID(chatRoomID)
+	if err != nil {
+		return nil, errors.New("chat room not found")
+	}
+
+	message := &models.Message{
+		Content:    content,
+		UserID:     userID,
+		ChatRoomID: chatRoomID,
+		Type:       "file",
+	}
+
+	err = s.messageRepo.Create(message)
+	if err != nil {
+		return nil, errors.New("failed to create file message")
 	}
 
 	// Return message with user and chat room information

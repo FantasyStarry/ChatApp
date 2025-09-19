@@ -161,16 +161,24 @@ func (c *Client) readPump() {
 			return
 		}
 
-		// Save message to database using service layer
-		message, err := c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, c.chatRoomID)
-		if err != nil {
-			log.Printf("Failed to save message: %v", err)
+		var message *models.Message
+		var saveErr error
+
+		// Save message to database using service layer based on message type
+		if wsMsg.Type == "file" {
+			message, saveErr = c.hub.messageService.CreateFileMessage(wsMsg.Content, c.userID, c.chatRoomID)
+		} else {
+			message, saveErr = c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, c.chatRoomID)
+		}
+		
+		if saveErr != nil {
+			log.Printf("Failed to save message: %v", saveErr)
 			continue
 		}
 
 		// Create response message
 		responseMsg := models.WSMessage{
-			Type:       "message",
+			Type:       message.Type,
 			Content:    message.Content,
 			UserID:     message.UserID,
 			Username:   message.User.Username,
@@ -196,7 +204,7 @@ func (c *Client) handleAuthMessage(wsMsg models.WSMessage) error {
 	// Set client authentication details
 	c.userID = claims.UserID
 	c.username = claims.Username
-	c.chatRoomID = wsMsg.ChatRoomID
+	// c.chatRoomID = wsMsg.ChatRoomID
 	c.isAuthenticated = true
 
 	log.Printf("Client authenticated: user_id=%d, username=%s, chatroom_id=%d",
