@@ -16,6 +16,7 @@ type Config struct {
 	CORS      CORSConfig      `mapstructure:"cors"`
 	Logging   LoggingConfig   `mapstructure:"logging"`
 	App       App             `mapstructure:"app"`
+	Minio     MinioConfig     `mapstructure:"minio"`
 }
 
 type ServerConfig struct {
@@ -69,6 +70,15 @@ type App struct {
 	Version     string `mapstructure:"version"`
 	Debug       bool   `mapstructure:"debug"`
 	Environment string `mapstructure:"environment"`
+}
+
+type MinioConfig struct {
+	Endpoint   string `mapstructure:"endpoint"`
+	AccessKey  string `mapstructure:"access_key"`
+	SecretKey  string `mapstructure:"secret_key"`
+	BucketName string `mapstructure:"bucket_name"`
+	UseSSL     bool   `mapstructure:"use_ssl"`
+	Region     string `mapstructure:"region"`
 }
 
 var GlobalConfig *Config
@@ -144,6 +154,12 @@ func setDefaults() {
 	viper.SetDefault("app.version", "1.0.0")
 	viper.SetDefault("app.debug", false)
 	viper.SetDefault("app.environment", "development")
+
+	viper.SetDefault("minio.endpoint", "127.0.0.1:9000")
+	viper.SetDefault("minio.access_key", "minioadmin")
+	viper.SetDefault("minio.secret_key", "minioadmin")
+	viper.SetDefault("minio.bucket_name", "chatapp")
+	viper.SetDefault("minio.use_ssl", false)
 }
 
 // GetDatabaseDSN returns the database connection string

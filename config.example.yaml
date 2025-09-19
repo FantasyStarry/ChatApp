@@ -52,3 +52,11 @@ app:
   version: "1.0.0"
   debug: true
   environment: "development"
+
+minio:
+  endpoint: "127.0.0.1:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  bucket_name: "chatapp"
+  use_ssl: false
+  region: "us-east-1"

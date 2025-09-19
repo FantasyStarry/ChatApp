@@ -8,6 +8,8 @@ A real-time chat application built with Go, Gin, GORM, and PostgreSQL.
 - Multiple chat rooms support
 - Real-time messaging via WebSocket
 - Message history persistence
+- File upload and download with Minio
+- File management per chat room
 - RESTful API endpoints
 
 ## Technology Stack
@@ -15,6 +17,7 @@ A real-time chat application built with Go, Gin, GORM, and PostgreSQL.
 - **Backend Framework**: Gin v1.9.1
 - **ORM**: GORM v1.25.4
 - **Database**: PostgreSQL
+- **File Storage**: Minio
 - **WebSocket**: Gorilla WebSocket v1.5.0
 - **Authentication**: JWT v5.0.0
 - **Password Hashing**: bcrypt
@@ -27,8 +30,9 @@ ChatApp/
 │   ├── config.go
 │   └── database.go
 ├── controllers/
-│   ├── auth.go
-│   └── chatroom.go
+│   ├── auth_controller.go
+│   ├── chatroom_controller.go
+│   └── file_controller.go
 ├── handlers/
 │   └── websocket.go
 ├── middleware/
@@ -36,12 +40,23 @@ ChatApp/
 ├── models/
 │   ├── chatroom.go
 │   ├── message.go
-│   └── user.go
+│   ├── user.go
+│   └── file.go
+├── repository/
+│   ├── chatroom_repository.go
+│   ├── message_repository.go
+│   ├── user_repository.go
+│   └── file_repository.go
+├── service/
+│   ├── auth_service.go
+│   ├── chatroom_service.go
+│   ├── message_service.go
+│   └── file_service.go
 ├── utils/
 │   ├── jwt.go
-│   └── password.go
+│   ├── password.go
+│   └── response.go
 ├── main.go
-├── seed.go
 ├── go.mod
 └── README.md
 ```
@@ -50,6 +65,7 @@ ChatApp/
 
 - Go 1.21 or higher
 - PostgreSQL database
+- Minio server (for file storage)
 
 ## Configuration
 
@@ -66,6 +82,12 @@ database:
   dbname: "ChatApp"
 jwt:
   secret: "your-jwt-secret"
+minio:
+  endpoint: "127.0.0.1:9000"
+  access_key: "minioadmin"
+  secret_key: "minioadmin"
+  bucket_name: "chatapp"
+  use_ssl: false
 ```
 
 See [Configuration Guide](docs/configuration.md) for detailed configuration options.
@@ -73,11 +95,13 @@ See [Configuration Guide](docs/configuration.md) for detailed configuration opti
 ## Installation
 
 1. Install Go dependencies:
+
 ```bash
 go mod tidy
 ```
 
 2. **Security Setup**: Copy the example configuration and add your credentials:
+
 ```bash
 cp config.example.yaml config.yaml
 # Edit config.yaml with your database credentials and JWT secret
@@ -86,6 +110,7 @@ cp config.example.yaml config.yaml
 **⚠️ Important**: Never commit `config.yaml` with real credentials to version control!
 
 3. Configure the application by editing `config.yaml` or setting environment variables:
+
 ```bash
 # Using environment variables
 export DATABASE_HOST=your-db-host
@@ -95,11 +120,13 @@ export JWT_SECRET=your-jwt-secret
 ```
 
 3. Run database seeding (creates test users and chat rooms):
+
 ```bash
 go run seed.go
 ```
 
 4. Start the server:
+
 ```bash
 go run main.go
 ```
@@ -118,23 +145,38 @@ The following test users are created by the seed script:
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/login` - User login
 
 ### User
+
 - `GET /api/profile` - Get user profile (requires auth)
 
 ### Chat Rooms
+
 - `GET /api/chatrooms` - Get all chat rooms (requires auth)
 - `POST /api/chatrooms` - Create new chat room (requires auth)
 - `GET /api/chatrooms/:id` - Get specific chat room (requires auth)
 - `GET /api/chatrooms/:id/messages` - Get chat room messages (requires auth)
 
+### File Management
+
+- `POST /api/files/upload` - Upload file to chat room (requires auth)
+- `GET /api/files/download/:id` - Get file download link (requires auth)
+- `GET /api/files/chatroom/:chatroom_id` - Get files in chat room (requires auth)
+- `GET /api/files/my` - Get user's uploaded files (requires auth)
+- `DELETE /api/files/:id` - Delete file (requires auth, uploader only)
+- `GET /api/files/:id` - Get file information (requires auth)
+- `GET /api/files/upload-url` - Get presigned upload URL (requires auth)
+
 ### WebSocket
+
 - `GET /api/ws/:chatroom_id` - WebSocket connection for chat room (requires auth)
 
 ## Usage Examples
 
 ### 1. Login
+
 ```bash
 curl -X POST http://localhost:8080/api/login \
   -H "Content-Type: application/json" \
@@ -142,12 +184,14 @@ curl -X POST http://localhost:8080/api/login \
 ```
 
 ### 2. Get Chat Rooms
+
 ```bash
 curl -X GET http://localhost:8080/api/chatrooms \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### 3. Create Chat Room
+
 ```bash
 curl -X POST http://localhost:8080/api/chatrooms \
   -H "Content-Type: application/json" \
@@ -156,12 +200,15 @@ curl -X POST http://localhost:8080/api/chatrooms \
 ```
 
 ### 4. WebSocket Connection
+
 Connect to WebSocket at:
+
 ```
 ws://localhost:8080/api/ws/1?token=YOUR_JWT_TOKEN
 ```
 
 Send messages in JSON format:
+
 ```json
 {
   "type": "message",

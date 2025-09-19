@@ -41,15 +41,18 @@ func setupRoutes() *gin.Engine {
 	userRepo := repository.NewUserRepository(config.DB)
 	chatRoomRepo := repository.NewChatRoomRepository(config.DB)
 	messageRepo := repository.NewMessageRepository(config.DB)
+	fileRepo := repository.NewFileRepository(config.DB)
 
 	// Initialize services
 	authService := service.NewAuthService(userRepo)
 	chatRoomService := service.NewChatRoomService(chatRoomRepo, userRepo)
 	messageService := service.NewMessageService(messageRepo, userRepo, chatRoomRepo)
+	fileService := service.NewFileService(fileRepo)
 
 	// Initialize controllers
 	authController := controllers.NewAuthController(authService)
 	chatRoomController := controllers.NewChatRoomController(chatRoomService, messageService)
+	fileController := controllers.NewFileController(fileService)
 
 	// Initialize WebSocket hub with message service
 	handlers.InitializeHub(messageService)
@@ -73,6 +76,15 @@ func setupRoutes() *gin.Engine {
 		protected.POST("/chatrooms", chatRoomController.CreateChatRoom)
 		protected.GET("/chatrooms/:id", chatRoomController.GetChatRoom)
 		protected.GET("/chatrooms/:id/messages", chatRoomController.GetChatRoomMessages)
+
+		// File routes
+		protected.POST("/files/upload", fileController.UploadFile)
+		protected.GET("/files/download/:id", fileController.DownloadFile)
+		protected.GET("/files/chatroom/:chatroom_id", fileController.GetFilesByRoom)
+		protected.GET("/files/my", fileController.GetFilesByUser)
+		protected.DELETE("/files/:id", fileController.DeleteFile)
+		protected.GET("/files/:id", fileController.GetFileInfo)
+		protected.GET("/files/upload-url", fileController.GetUploadURL)
 	}
 
 	// WebSocket route (no authentication middleware - auth handled via WebSocket messages)

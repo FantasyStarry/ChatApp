@@ -42,7 +42,7 @@ func MigrateDatabase() {
 		log.Fatal("Database not connected. Please call ConnectDatabase first.")
 	}
 
-	err := DB.AutoMigrate(&models.User{}, &models.ChatRoom{}, &models.Message{})
+	err := DB.AutoMigrate(&models.User{}, &models.ChatRoom{}, &models.Message{}, &models.File{})
 	if err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}

@@ -342,6 +342,250 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
   }
   ```
 
+### 文件管理相关
+
+#### 上传文件
+
+- **URL**: `POST /api/files/upload`
+- **描述**: 上传文件到指定聊天室
+- **认证**: 需要 Bearer Token
+- **请求类型**: multipart/form-data
+- **请求参数**:
+  - `chatroom_id`: 聊天室 ID（form data）
+  - `file`: 要上传的文件（file）
+- **文件限制**: 最大 50MB
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "文件上传成功",
+    "data": {
+      "id": "integer",
+      "file_name": "string",
+      "file_path": "string",
+      "file_size": "integer",
+      "content_type": "string",
+      "chatroom_id": "integer",
+      "uploader_id": "integer",
+      "uploaded_at": "datetime",
+      "created_at": "datetime"
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4000,
+    "messages": "文件大小不能超过50MB",
+    "data": null
+  }
+  ```
+
+#### 下载文件
+
+- **URL**: `GET /api/files/download/{id}`
+- **描述**: 获取文件下载链接
+- **认证**: 需要 Bearer Token
+- **路径参数**:
+  - `id`: 文件 ID
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "获取下载链接成功",
+    "data": {
+      "download_url": "string",
+      "file_info": {
+        "id": "integer",
+        "file_name": "string",
+        "file_size": "integer",
+        "content_type": "string",
+        "chatroom_id": "integer",
+        "uploader_id": "integer",
+        "uploaded_at": "datetime"
+      }
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4004,
+    "messages": "文件不存在",
+    "data": null
+  }
+  ```
+
+#### 获取聊天室文件列表
+
+- **URL**: `GET /api/files/chatroom/{chatroom_id}`
+- **描述**: 获取指定聊天室的文件列表（支持分页）
+- **认证**: 需要 Bearer Token
+- **路径参数**:
+  - `chatroom_id`: 聊天室 ID
+- **查询参数**:
+  - `page`: 页码（默认 1）
+  - `page_size`: 每页数量（默认 20，最大 100）
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "获取文件列表成功",
+    "data": {
+      "files": [
+        {
+          "id": "integer",
+          "file_name": "string",
+          "file_path": "string",
+          "file_size": "integer",
+          "content_type": "string",
+          "chatroom_id": "integer",
+          "uploader_id": "integer",
+          "uploader": {
+            "id": "integer",
+            "username": "string"
+          },
+          "uploaded_at": "datetime"
+        }
+      ],
+      "total": "integer",
+      "page": "integer",
+      "page_size": "integer",
+      "total_pages": "integer"
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4000,
+    "messages": "无效的聊天室ID",
+    "data": null
+  }
+  ```
+
+#### 获取用户文件列表
+
+- **URL**: `GET /api/files/my`
+- **描述**: 获取当前用户上传的所有文件列表
+- **认证**: 需要 Bearer Token
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "获取用户文件列表成功",
+    "data": [
+      {
+        "id": "integer",
+        "file_name": "string",
+        "file_path": "string",
+        "file_size": "integer",
+        "content_type": "string",
+        "chatroom_id": "integer",
+        "uploader_id": "integer",
+        "chatroom": {
+          "id": "integer",
+          "name": "string"
+        },
+        "uploaded_at": "datetime"
+      }
+    ]
+  }
+  ```
+
+#### 删除文件
+
+- **URL**: `DELETE /api/files/{id}`
+- **描述**: 删除指定文件（只有上传者可以删除）
+- **认证**: 需要 Bearer Token
+- **路径参数**:
+  - `id`: 文件 ID
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "文件删除成功",
+    "data": null
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4003,
+    "messages": "权限不足：只有上传者可以删除文件",
+    "data": null
+  }
+  ```
+
+#### 获取文件信息
+
+- **URL**: `GET /api/files/{id}`
+- **描述**: 获取指定文件的详细信息
+- **认证**: 需要 Bearer Token
+- **路径参数**:
+  - `id`: 文件 ID
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "获取文件信息成功",
+    "data": {
+      "id": "integer",
+      "file_name": "string",
+      "file_path": "string",
+      "file_size": "integer",
+      "content_type": "string",
+      "chatroom_id": "integer",
+      "uploader_id": "integer",
+      "chatroom": {
+        "id": "integer",
+        "name": "string"
+      },
+      "uploader": {
+        "id": "integer",
+        "username": "string"
+      },
+      "uploaded_at": "datetime"
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4004,
+    "messages": "文件不存在",
+    "data": null
+  }
+  ```
+
+#### 获取上传预签名 URL（可选功能）
+
+- **URL**: `GET /api/files/upload-url`
+- **描述**: 获取文件上传的预签名 URL，用于前端直接上传到 Minio
+- **认证**: 需要 Bearer Token
+- **查询参数**:
+  - `filename`: 文件名
+  - `chatroom_id`: 聊天室 ID
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "获取上传URL成功",
+    "data": {
+      "upload_url": "string",
+      "object_path": "string"
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4000,
+    "messages": "文件名和聊天室ID不能为空",
+    "data": null
+  }
+  ```
+
 ## WebSocket 接口
 
 ### 连接地址
