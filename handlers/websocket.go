@@ -177,13 +177,18 @@ func (c *Client) readPump() {
 		}
 
 		// Create response message
-		responseMsg := models.WSMessage{
-			Type:       message.Type,
-			Content:    message.Content,
-			UserID:     message.UserID,
-			Username:   message.User.Username,
-			ChatRoomID: message.ChatRoomID,
-			Timestamp:  message.CreatedAt,
+		responseMsg := map[string]interface{}{
+			"type": "message",
+			"message": map[string]interface{}{
+				"id":          message.ID,
+				"content":     message.Content,
+				"user_id":     message.UserID,
+				"user":        message.User,
+				"chatroom_id": message.ChatRoomID,
+				"chatroom":    message.ChatRoom,
+				"created_at":  message.CreatedAt,
+				"type":        message.Type,
+			},
 		}
 
 		// Broadcast to all clients in the same chat room
