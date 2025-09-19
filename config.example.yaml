@@ -59,4 +59,3 @@ minio:
   secret_key: "minioadmin"
   bucket_name: "chatapp"
   use_ssl: false
-  region: "us-east-1"
