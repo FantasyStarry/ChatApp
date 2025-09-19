@@ -11,7 +11,7 @@ type Message struct {
 	Content    string         `json:"content" gorm:"not null"`
 	UserID     uint           `json:"user_id"`
 	User       User           `json:"user" gorm:"foreignKey:UserID"`
-	ChatRoomID uint           `json:"chatroom_id"`
+ChatRoomID uint           `json:"chat_room_id" gorm:"column:chat_room_id"`
 	ChatRoom   ChatRoom       `json:"chatroom,omitempty" gorm:"foreignKey:ChatRoomID"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
@@ -24,7 +24,7 @@ type WSMessage struct {
 	Content    string    `json:"content"`
 	UserID     uint      `json:"user_id"`
 	Username   string    `json:"username"`
-	ChatRoomID uint      `json:"chatroom_id"`
+	ChatRoomID uint      `json:"chat_room_id"`
 	Timestamp  time.Time `json:"timestamp"`
 	// Authentication fields
 	Token string `json:"token,omitempty"`

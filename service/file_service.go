@@ -4,51 +4,69 @@ import (
 	"chatapp/config"
 	"chatapp/models"
 	"chatapp/repository"
-	"context"
+	"chatapp/storage"
 	"fmt"
 	"mime/multipart"
 	"path/filepath"
 	"strings"
 	"time"
-
-	"github.com/minio/minio-go/v7"
-	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
 type FileService struct {
-	fileRepo    *repository.FileRepository
-	minioClient *minio.Client
-	bucketName  string
+	fileRepo *repository.FileRepository
+	storage  storage.Storage
 }
 
 func NewFileService(fileRepo *repository.FileRepository) *FileService {
-	// 初始化Minio客户端
-	minioClient, err := minio.New(config.GlobalConfig.Minio.Endpoint, &minio.Options{
-		Creds:  credentials.NewStaticV4(config.GlobalConfig.Minio.AccessKey, config.GlobalConfig.Minio.SecretKey, ""),
-		Secure: config.GlobalConfig.Minio.UseSSL,
-	})
-	if err != nil {
-		panic(fmt.Sprintf("Failed to initialize Minio client: %v", err))
+	// 创建存储工厂
+	factory := storage.NewStorageFactory()
+
+	// 根据配置选择存储类型
+	storageType := config.GlobalConfig.Storage.Type
+	if storageType == "" {
+		storageType = storage.StorageTypeMinio // 默认使用MinIO
 	}
 
-	// 确保bucket存在
-	ctx := context.Background()
-	bucketName := config.GlobalConfig.Minio.BucketName
-	exists, err := minioClient.BucketExists(ctx, bucketName)
-	if err != nil {
-		panic(fmt.Sprintf("Failed to check bucket existence: %v", err))
+	// 验证存储类型
+	if !factory.IsValidStorageType(storageType) {
+		panic(fmt.Sprintf("Unsupported storage type: %s", storageType))
 	}
-	if !exists {
-		err = minioClient.MakeBucket(ctx, bucketName, minio.MakeBucketOptions{Region: config.GlobalConfig.Minio.Region})
-		if err != nil {
-			panic(fmt.Sprintf("Failed to create bucket: %v", err))
+
+	var storageInstance storage.Storage
+	var err error
+
+	// 根据类型创建存储实例
+	switch storageType {
+	case storage.StorageTypeMinio:
+		minioConfig := storage.MinioConfig{
+			Endpoint:   config.GlobalConfig.Minio.Endpoint,
+			AccessKey:  config.GlobalConfig.Minio.AccessKey,
+			SecretKey:  config.GlobalConfig.Minio.SecretKey,
+			BucketName: config.GlobalConfig.Minio.BucketName,
+			UseSSL:     config.GlobalConfig.Minio.UseSSL,
+			Region:     config.GlobalConfig.Minio.Region,
 		}
+		storageInstance, err = factory.CreateStorage(storageType, minioConfig)
+
+	case storage.StorageTypeQiniu:
+		qiniuConfig := storage.QiniuStorageConfig{
+			AccessKey: config.GlobalConfig.Qiniu.AccessKey,
+			SecretKey: config.GlobalConfig.Qiniu.SecretKey,
+			Bucket:    config.GlobalConfig.Qiniu.Bucket,
+			Domain:    config.GlobalConfig.Qiniu.Domain,
+			Region:    config.GlobalConfig.Qiniu.Region,
+			UseHTTPS:  config.GlobalConfig.Qiniu.UseHTTPS,
+		}
+		storageInstance, err = factory.CreateStorage(storageType, qiniuConfig)
+	}
+
+	if err != nil {
+		panic(fmt.Sprintf("Failed to initialize storage: %v", err))
 	}
 
 	return &FileService{
-		fileRepo:    fileRepo,
-		minioClient: minioClient,
-		bucketName:  bucketName,
+		fileRepo: fileRepo,
+		storage:  storageInstance,
 	}
 }
 
@@ -67,20 +85,22 @@ func (s *FileService) UploadFile(file *multipart.FileHeader, chatRoomID, uploade
 	fileName := strings.TrimSuffix(file.Filename, fileExt)
 	objectPath := fmt.Sprintf("chatroom-%d/%d-%s%s", chatRoomID, timestamp, fileName, fileExt)
 
-	// 上传到Minio
-	ctx := context.Background()
-	uploadInfo, err := s.minioClient.PutObject(ctx, s.bucketName, objectPath, src, file.Size, minio.PutObjectOptions{
+	// 上传到存储
+	uploadOptions := storage.UploadOptions{
 		ContentType: file.Header.Get("Content-Type"),
-	})
+		Size:        file.Size,
+	}
+
+	uploadResult, err := s.storage.Upload(objectPath, src, uploadOptions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload file to minio: %w", err)
+		return nil, fmt.Errorf("failed to upload file: %w", err)
 	}
 
 	// 创建数据库记录
 	fileRecord := &models.File{
 		FileName:    file.Filename,
-		FilePath:    objectPath,
-		FileSize:    uploadInfo.Size,
+		FilePath:    uploadResult.ObjectPath,
+		FileSize:    uploadResult.Size,
 		ContentType: file.Header.Get("Content-Type"),
 		ChatRoomID:  chatRoomID,
 		UploaderID:  uploaderID,
@@ -89,7 +109,7 @@ func (s *FileService) UploadFile(file *multipart.FileHeader, chatRoomID, uploade
 	err = s.fileRepo.Create(fileRecord)
 	if err != nil {
 		// 如果数据库插入失败，尝试删除已上传的文件
-		s.minioClient.RemoveObject(ctx, s.bucketName, objectPath, minio.RemoveObjectOptions{})
+		s.storage.Delete(objectPath)
 		return nil, fmt.Errorf("failed to create file record: %w", err)
 	}
 
@@ -109,14 +129,13 @@ func (s *FileService) DownloadFile(fileID uint) (string, *models.File, error) {
 		return "", nil, fmt.Errorf("file not found: %w", err)
 	}
 
-	// 生成预签名下载URL（有效期1小时）
-	ctx := context.Background()
-	presignedURL, err := s.minioClient.PresignedGetObject(ctx, s.bucketName, fileRecord.FilePath, time.Hour, nil)
+	// 生成下载URL（有效期1小时）
+	downloadURL, err := s.storage.Download(fileRecord.FilePath, time.Hour)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to generate download url: %w", err)
 	}
 
-	return presignedURL.String(), fileRecord, nil
+	return downloadURL, fileRecord, nil
 }
 
 // GetFilesByRoom 获取聊天室文件列表
@@ -153,11 +172,10 @@ func (s *FileService) DeleteFile(fileID, userID uint) error {
 		return fmt.Errorf("permission denied: only uploader can delete the file")
 	}
 
-	// 从Minio删除文件
-	ctx := context.Background()
-	err = s.minioClient.RemoveObject(ctx, s.bucketName, fileRecord.FilePath, minio.RemoveObjectOptions{})
+	// 从存储删除文件
+	err = s.storage.Delete(fileRecord.FilePath)
 	if err != nil {
-		return fmt.Errorf("failed to delete file from minio: %w", err)
+		return fmt.Errorf("failed to delete file from storage: %w", err)
 	}
 
 	// 从数据库删除记录
@@ -169,7 +187,7 @@ func (s *FileService) DeleteFile(fileID, userID uint) error {
 	return nil
 }
 
-// GetUploadURL 获取文件上传的预签名URL（可选功能，用于前端直接上传到Minio）
+// GetUploadURL 获取文件上传的预签名URL（可选功能，用于前端直接上传）
 func (s *FileService) GetUploadURL(fileName string, chatRoomID uint) (string, string, error) {
 	// 生成对象路径
 	timestamp := time.Now().Unix()
@@ -178,11 +196,10 @@ func (s *FileService) GetUploadURL(fileName string, chatRoomID uint) (string, st
 	objectPath := fmt.Sprintf("chatroom-%d/%d-%s%s", chatRoomID, timestamp, baseFileName, fileExt)
 
 	// 生成预签名上传URL（有效期15分钟）
-	ctx := context.Background()
-	presignedURL, err := s.minioClient.PresignedPutObject(ctx, s.bucketName, objectPath, 15*time.Minute)
+	uploadURL, err := s.storage.GetUploadURL(objectPath, 15*time.Minute)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to generate upload url: %w", err)
 	}
 
-	return presignedURL.String(), objectPath, nil
+	return uploadURL, objectPath, nil
 }

@@ -13,8 +13,8 @@ type File struct {
 	FilePath     string    `json:"file_path" gorm:"not null;size:500"`           // Minio中的对象路径
 	FileSize     int64     `json:"file_size" gorm:"not null"`                    // 文件大小（字节）
 	ContentType  string    `json:"content_type" gorm:"size:100"`                 // MIME类型
-	ChatRoomID   uint      `json:"chatroom_id" gorm:"not null;index"`            // 所属聊天室ID
-	UploaderID   uint      `json:"uploader_id" gorm:"not null;index"`            // 上传用户ID
+	ChatRoomID   uint      `json:"chat_room_id" gorm:"column:chat_room_id;not null;index"`    // 所属聊天室ID
+	UploaderID   uint      `json:"uploader_id" gorm:"column:uploader_id;not null;index"`      // 上传用户ID
 	UploadedAt   time.Time `json:"uploaded_at" gorm:"autoCreateTime"`            // 上传时间
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`

@@ -53,9 +53,21 @@ app:
   debug: true
   environment: "development"
 
+storage:
+  type: "minio"  # "minio" or "qiniu"
+
 minio:
   endpoint: "127.0.0.1:9000"
   access_key: "minioadmin"
   secret_key: "minioadmin"
   bucket_name: "chatapp"
   use_ssl: false
+  region: "us-east-1"
+
+qiniu:
+  access_key: "YOUR_QINIU_ACCESS_KEY"
+  secret_key: "YOUR_QINIU_SECRET_KEY"
+  bucket: "YOUR_QINIU_BUCKET_NAME"
+  domain: "YOUR_QINIU_DOMAIN.com"
+  region: "south-china"  # "east-china", "north-china", "south-china", "north-america", "southeast-asia"
+  use_https: true

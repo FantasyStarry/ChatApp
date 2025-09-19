@@ -32,7 +32,7 @@ func (r *FileRepository) GetByID(id uint) (*models.File, error) {
 // GetByChatRoomID 根据聊天室ID获取文件列表
 func (r *FileRepository) GetByChatRoomID(chatRoomID uint) ([]models.File, error) {
 	var files []models.File
-	err := r.db.Where("chatroom_id = ?", chatRoomID).
+	err := r.db.Where("chat_room_id = ?", chatRoomID).
 		Preload("Uploader").
 		Order("uploaded_at DESC").
 		Find(&files).Error
@@ -65,14 +65,14 @@ func (r *FileRepository) GetByChatRoomIDWithPagination(chatRoomID uint, page, pa
 	var total int64
 	
 	// 获取总数
-	err := r.db.Model(&models.File{}).Where("chatroom_id = ?", chatRoomID).Count(&total).Error
+	err := r.db.Model(&models.File{}).Where("chat_room_id = ?", chatRoomID).Count(&total).Error
 	if err != nil {
 		return nil, 0, err
 	}
 	
 	// 分页查询
 	offset := (page - 1) * pageSize
-	err = r.db.Where("chatroom_id = ?", chatRoomID).
+	err = r.db.Where("chat_room_id = ?", chatRoomID).
 		Preload("Uploader").
 		Order("uploaded_at DESC").
 		Offset(offset).

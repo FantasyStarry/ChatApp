@@ -16,7 +16,9 @@ type Config struct {
 	CORS      CORSConfig      `mapstructure:"cors"`
 	Logging   LoggingConfig   `mapstructure:"logging"`
 	App       App             `mapstructure:"app"`
+	Storage   StorageConfig   `mapstructure:"storage"`
 	Minio     MinioConfig     `mapstructure:"minio"`
+	Qiniu     QiniuConfig     `mapstructure:"qiniu"`
 }
 
 type ServerConfig struct {
@@ -72,6 +74,10 @@ type App struct {
 	Environment string `mapstructure:"environment"`
 }
 
+type StorageConfig struct {
+	Type string `mapstructure:"type"` // "minio" or "qiniu"
+}
+
 type MinioConfig struct {
 	Endpoint   string `mapstructure:"endpoint"`
 	AccessKey  string `mapstructure:"access_key"`
@@ -79,6 +85,15 @@ type MinioConfig struct {
 	BucketName string `mapstructure:"bucket_name"`
 	UseSSL     bool   `mapstructure:"use_ssl"`
 	Region     string `mapstructure:"region"`
+}
+
+type QiniuConfig struct {
+	AccessKey string `mapstructure:"access_key"`
+	SecretKey string `mapstructure:"secret_key"`
+	Bucket    string `mapstructure:"bucket"`
+	Domain    string `mapstructure:"domain"`
+	Region    string `mapstructure:"region"`
+	UseHTTPS  bool   `mapstructure:"use_https"`
 }
 
 var GlobalConfig *Config
@@ -155,11 +170,20 @@ func setDefaults() {
 	viper.SetDefault("app.debug", false)
 	viper.SetDefault("app.environment", "development")
 
+	viper.SetDefault("storage.type", "minio")
+
 	viper.SetDefault("minio.endpoint", "127.0.0.1:9000")
 	viper.SetDefault("minio.access_key", "minioadmin")
 	viper.SetDefault("minio.secret_key", "minioadmin")
 	viper.SetDefault("minio.bucket_name", "chatapp")
 	viper.SetDefault("minio.use_ssl", false)
+
+	viper.SetDefault("qiniu.access_key", "")
+	viper.SetDefault("qiniu.secret_key", "")
+	viper.SetDefault("qiniu.bucket", "")
+	viper.SetDefault("qiniu.domain", "")
+	viper.SetDefault("qiniu.region", "south-china")
+	viper.SetDefault("qiniu.use_https", true)
 }
 
 // GetDatabaseDSN returns the database connection string
