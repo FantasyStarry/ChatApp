@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"chatapp/service"
-	"net/http"
+	"chatapp/utils"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
@@ -30,11 +30,11 @@ type CreateChatRoomRequest struct {
 func (ctrl *ChatRoomController) GetChatRooms(c *gin.Context) {
 	chatRooms, err := ctrl.chatRoomService.GetAllChatRooms()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.InternalErrorResponse(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, chatRooms)
+	utils.SuccessResponse(c, chatRooms)
 }
 
 // GetChatRoom returns a specific chat room
@@ -42,24 +42,24 @@ func (ctrl *ChatRoomController) GetChatRoom(c *gin.Context) {
 	id := c.Param("id")
 	chatRoomID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat room ID"})
+		utils.BadRequestResponse(c, "Invalid chat room ID")
 		return
 	}
 
 	chatRoom, err := ctrl.chatRoomService.GetChatRoomWithMessages(uint(chatRoomID))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		utils.NotFoundResponse(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, chatRoom)
+	utils.SuccessResponse(c, chatRoom)
 }
 
 // CreateChatRoom creates a new chat room
 func (ctrl *ChatRoomController) CreateChatRoom(c *gin.Context) {
 	var req CreateChatRoomRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.ValidationErrorResponse(c, err.Error())
 		return
 	}
 
@@ -67,11 +67,11 @@ func (ctrl *ChatRoomController) CreateChatRoom(c *gin.Context) {
 
 	chatRoom, err := ctrl.chatRoomService.CreateChatRoom(req.Name, req.Description, userID.(uint))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.InternalErrorResponse(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusCreated, chatRoom)
+	utils.SuccessResponseWithMessage(c, "聊天室创建成功", chatRoom)
 }
 
 // GetChatRoomMessages returns messages for a specific chat room
@@ -79,7 +79,7 @@ func (ctrl *ChatRoomController) GetChatRoomMessages(c *gin.Context) {
 	id := c.Param("id")
 	chatRoomID, err := strconv.ParseUint(id, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat room ID"})
+		utils.BadRequestResponse(c, "Invalid chat room ID")
 		return
 	}
 
@@ -92,9 +92,9 @@ func (ctrl *ChatRoomController) GetChatRoomMessages(c *gin.Context) {
 
 	messages, err := ctrl.messageService.GetChatRoomMessages(uint(chatRoomID), limit, offset)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		utils.InternalErrorResponse(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, messages)
+	utils.SuccessResponse(c, messages)
 }

@@ -13,6 +13,40 @@ ChatApp 是一个基于 Go 语言开发的实时聊天应用，提供了 RESTful
 - **认证**: JWT v5.0.0
 - **密码加密**: bcrypt
 
+## 统一响应格式
+
+**重要变更**: 从 v2.0 开始，所有 API 接口都使用统一的响应格式：
+
+```json
+{
+  "code": 1000,
+  "messages": "成功",
+  "data": {
+    // 实际数据内容
+  }
+}
+```
+
+### 响应码说明
+
+#### 成功响应码
+
+- `1000`: 操作成功
+
+#### 客户端错误 (4xxx)
+
+- `4000`: 请求参数错误
+- `4001`: 未认证或认证失败
+- `4003`: 无权限访问
+- `4004`: 资源不存在
+- `4005`: 数据验证失败
+
+#### 服务端错误 (5xxx)
+
+- `5000`: 服务器内部错误
+- `5001`: 数据库操作失败
+- `5002`: 第三方服务异常
+
 ## 认证机制
 
 大多数 API 端点都需要通过 JWT Token 进行认证。获取 Token 的方式是通过登录接口。
@@ -28,14 +62,19 @@ curl -X POST http://localhost:8080/api/login \
 ```
 
 返回示例：
+
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 1,
-    "username": "admin",
-    "email": "admin@example.com",
-    "created_at": "2023-01-01T00:00:00Z"
+  "code": 1000,
+  "messages": "成功",
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "email": "admin@example.com",
+      "created_at": "2023-01-01T00:00:00Z"
+    }
   }
 }
 ```
@@ -53,6 +92,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ### 认证相关
 
 #### 用户登录
+
 - **URL**: `POST /api/login`
 - **描述**: 用户登录并获取 JWT Token
 - **请求参数**:
@@ -62,11 +102,42 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     "password": "string"
   }
   ```
-- **响应**:
+- **成功响应**:
   ```json
   {
-    "token": "string",
-    "user": {
+    "code": 1000,
+    "messages": "成功",
+    "data": {
+      "token": "string",
+      "user": {
+        "id": "integer",
+        "username": "string",
+        "email": "string",
+        "created_at": "datetime"
+      }
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4001,
+    "messages": "用户名或密码错误",
+    "data": null
+  }
+  ```
+
+#### 获取用户信息
+
+- **URL**: `GET /api/profile`
+- **描述**: 获取当前登录用户的信息
+- **认证**: 需要 Bearer Token
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "成功",
+    "data": {
       "id": "integer",
       "username": "string",
       "email": "string",
@@ -74,43 +145,94 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     }
   }
   ```
-
-#### 获取用户信息
-- **URL**: `GET /api/profile`
-- **描述**: 获取当前登录用户的信息
-- **认证**: 需要 Bearer Token
-- **响应**:
+- **错误响应**:
   ```json
   {
-    "id": "integer",
-    "username": "string",
-    "email": "string",
-    "created_at": "datetime"
+    "code": 4004,
+    "messages": "用户不存在",
+    "data": null
   }
   ```
 
 #### 用户登出
+
 - **URL**: `POST /api/logout`
 - **描述**: 用户登出
 - **认证**: 需要 Bearer Token
-- **响应**:
+- **成功响应**:
   ```json
   {
-    "message": "Logout successful",
-    "user_id": "integer"
+    "code": 1000,
+    "messages": "Logout successful",
+    "data": {
+      "user_id": "integer"
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4001,
+    "messages": "User not authenticated",
+    "data": null
   }
   ```
 
 ### 聊天室相关
 
 #### 获取所有聊天室
+
 - **URL**: `GET /api/chatrooms`
 - **描述**: 获取所有聊天室列表
 - **认证**: 需要 Bearer Token
-- **响应**:
+- **成功响应**:
   ```json
-  [
-    {
+  {
+    "code": 1000,
+    "messages": "成功",
+    "data": [
+      {
+        "id": "integer",
+        "name": "string",
+        "description": "string",
+        "created_by": "integer",
+        "creator": {
+          "id": "integer",
+          "username": "string",
+          "email": "string"
+        },
+        "created_at": "datetime"
+      }
+    ]
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 5000,
+    "messages": "服务器内部错误",
+    "data": null
+  }
+  ```
+
+#### 创建聊天室
+
+- **URL**: `POST /api/chatrooms`
+- **描述**: 创建新的聊天室
+- **认证**: 需要 Bearer Token
+- **请求参数**:
+  ```json
+  {
+    "name": "string",
+    "description": "string"
+  }
+  ```
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "聊天室创建成功",
+    "data": {
       "id": "integer",
       "name": "string",
       "description": "string",
@@ -122,56 +244,81 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
       },
       "created_at": "datetime"
     }
-  ]
-  ```
-
-#### 创建聊天室
-- **URL**: `POST /api/chatrooms`
-- **描述**: 创建新的聊天室
-- **认证**: 需要 Bearer Token
-- **请求参数**:
-  ```json
-  {
-    "name": "string",
-    "description": "string"
   }
   ```
-- **响应**:
+- **错误响应**:
   ```json
   {
-    "id": "integer",
-    "name": "string",
-    "description": "string",
-    "created_by": "integer",
-    "creator": {
-      "id": "integer",
-      "username": "string",
-      "email": "string"
-    },
-    "created_at": "datetime"
+    "code": 4005,
+    "messages": "数据验证失败",
+    "data": null
   }
   ```
 
 #### 获取特定聊天室
+
 - **URL**: `GET /api/chatrooms/{id}`
 - **描述**: 获取特定聊天室的详细信息
 - **认证**: 需要 Bearer Token
 - **路径参数**:
-  - `id`: 聊天室ID
-- **响应**:
+  - `id`: 聊天室 ID
+- **成功响应**:
   ```json
   {
-    "id": "integer",
-    "name": "string",
-    "description": "string",
-    "created_by": "integer",
-    "creator": {
+    "code": 1000,
+    "messages": "成功",
+    "data": {
       "id": "integer",
-      "username": "string",
-      "email": "string"
-    },
-    "created_at": "datetime",
-    "messages": [
+      "name": "string",
+      "description": "string",
+      "created_by": "integer",
+      "creator": {
+        "id": "integer",
+        "username": "string",
+        "email": "string"
+      },
+      "created_at": "datetime",
+      "messages": [
+        {
+          "id": "integer",
+          "content": "string",
+          "user_id": "integer",
+          "user": {
+            "id": "integer",
+            "username": "string"
+          },
+          "chatroom_id": "integer",
+          "created_at": "datetime"
+        }
+      ]
+    }
+  }
+  ```
+- **错误响应**:
+  ```json
+  {
+    "code": 4004,
+    "messages": "聊天室不存在",
+    "data": null
+  }
+  ```
+
+#### 获取聊天室消息
+
+- **URL**: `GET /api/chatrooms/{id}/messages`
+- **描述**: 获取特定聊天室的消息列表
+- **认证**: 需要 Bearer Token
+- **路径参数**:
+  - `id`: 聊天室 ID
+- **查询参数**:
+  - `limit`: 每页消息数量（默认 50）
+  - `offset`: 偏移量（默认 0）
+- **成功响应**:
+  ```json
+  {
+    "code": 1000,
+    "messages": "成功",
+    "data": [
       {
         "id": "integer",
         "content": "string",
@@ -186,36 +333,19 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
     ]
   }
   ```
-
-#### 获取聊天室消息
-- **URL**: `GET /api/chatrooms/{id}/messages`
-- **描述**: 获取特定聊天室的消息列表
-- **认证**: 需要 Bearer Token
-- **路径参数**:
-  - `id`: 聊天室ID
-- **查询参数**:
-  - `limit`: 每页消息数量（默认50）
-  - `offset`: 偏移量（默认0）
-- **响应**:
+- **错误响应**:
   ```json
-  [
-    {
-      "id": "integer",
-      "content": "string",
-      "user_id": "integer",
-      "user": {
-        "id": "integer",
-        "username": "string"
-      },
-      "chatroom_id": "integer",
-      "created_at": "datetime"
-    }
-  ]
+  {
+    "code": 4000,
+    "messages": "Invalid chat room ID",
+    "data": null
+  }
   ```
 
 ## WebSocket 接口
 
 ### 连接地址
+
 ```
 ws://localhost:8080/api/ws/{chatroom_id}
 ```
@@ -244,6 +374,7 @@ WebSocket 的认证机制已更新，采用消息认证方式：
 ### 认证响应
 
 认证成功：
+
 ```json
 {
   "type": "auth_success",
@@ -255,6 +386,7 @@ WebSocket 的认证机制已更新，采用消息认证方式：
 ### 消息格式
 
 #### 发送消息
+
 ```json
 {
   "type": "message",
@@ -263,6 +395,7 @@ WebSocket 的认证机制已更新，采用消息认证方式：
 ```
 
 #### 接收消息
+
 ```json
 {
   "type": "message",
@@ -278,25 +411,25 @@ WebSocket 的认证机制已更新，采用消息认证方式：
 
 ```javascript
 // 1. 建立连接
-const ws = new WebSocket('ws://localhost:8080/api/ws/1');
+const ws = new WebSocket("ws://localhost:8080/api/ws/1");
 
 // 2. 连接打开后发送认证消息
-ws.onopen = function(event) {
+ws.onopen = function (event) {
   const authMessage = {
-    type: 'auth',
-    token: 'your-jwt-token-here',
-    chatroomId: 1
+    type: "auth",
+    token: "your-jwt-token-here",
+    chatroomId: 1,
   };
   ws.send(JSON.stringify(authMessage));
 };
 
 // 3. 处理消息
-ws.onmessage = function(event) {
+ws.onmessage = function (event) {
   const data = JSON.parse(event.data);
-  
-  if (data.type === 'auth_success') {
-    console.log('认证成功');
-  } else if (data.type === 'message') {
+
+  if (data.type === "auth_success") {
+    console.log("认证成功");
+  } else if (data.type === "message") {
     console.log(`[${data.username}]: ${data.content}`);
   }
 };
@@ -304,8 +437,8 @@ ws.onmessage = function(event) {
 // 4. 发送消息
 function sendMessage(content) {
   const message = {
-    type: 'message',
-    content: content
+    type: "message",
+    content: content,
   };
   ws.send(JSON.stringify(message));
 }
@@ -313,19 +446,23 @@ function sendMessage(content) {
 
 ## 错误响应格式
 
-所有错误响应都遵循以下格式：
+所有错误响应都遵循以下统一格式：
 
 ```json
 {
-  "error": "错误描述信息"
+  "code": 4001,
+  "messages": "错误描述信息",
+  "data": null
 }
 ```
 
-常见的 HTTP 状态码：
-- `400`: 请求参数错误
-- `401`: 未认证或认证失败
-- `404`: 资源未找到
-- `500`: 服务器内部错误
+常见的 HTTP 状态码和业务状态码对应关系：
+
+- `400 Bad Request` + `code: 4000/4005`: 请求参数错误或数据验证失败
+- `401 Unauthorized` + `code: 4001`: 未认证或认证失败
+- `403 Forbidden` + `code: 4003`: 无权限访问
+- `404 Not Found` + `code: 4004`: 资源未找到
+- `500 Internal Server Error` + `code: 5000/5001/5002`: 服务器内部错误
 
 ## 测试用户
 
@@ -347,7 +484,7 @@ function sendMessage(content) {
 ## 安全注意事项
 
 1. 不要在版本控制系统中提交包含真实凭证的配置文件
-2. 生产环境中使用强 JWT 密钥（至少64个字符）
+2. 生产环境中使用强 JWT 密钥（至少 64 个字符）
 3. 启用数据库 SSL 连接
 4. 设置特定的 CORS 允许来源，不要使用通配符
 5. 定期轮换密钥和密码

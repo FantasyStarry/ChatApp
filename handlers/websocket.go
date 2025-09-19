@@ -264,7 +264,7 @@ func HandleWebSocket(c *gin.Context) {
 	chatRoomIDStr := c.Param("chatroom_id")
 	chatRoomID, err := strconv.ParseUint(chatRoomIDStr, 10, 32)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid chat room ID"})
+		utils.BadRequestResponse(c, "Invalid chat room ID")
 		return
 	}
 

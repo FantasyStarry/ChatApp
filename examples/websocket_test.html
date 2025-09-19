@@ -1,149 +1,248 @@
 <!DOCTYPE html>
 <html>
-<head>
+  <head>
     <title>WebSocket Authentication Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #messages { border: 1px solid #ccc; height: 300px; overflow-y: scroll; padding: 10px; margin: 10px 0; }
-        input[type="text"] { width: 300px; margin: 5px; }
-        button { margin: 5px; padding: 5px 10px; }
-        .auth-message { color: green; font-weight: bold; }
-        .error-message { color: red; font-weight: bold; }
-        .regular-message { color: blue; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      #messages {
+        border: 1px solid #ccc;
+        height: 300px;
+        overflow-y: scroll;
+        padding: 10px;
+        margin: 10px 0;
+      }
+      input[type="text"] {
+        width: 300px;
+        margin: 5px;
+      }
+      button {
+        margin: 5px;
+        padding: 5px 10px;
+      }
+      .auth-message {
+        color: green;
+        font-weight: bold;
+      }
+      .error-message {
+        color: red;
+        font-weight: bold;
+      }
+      .regular-message {
+        color: blue;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>WebSocket Authentication Test</h1>
-    
+
     <div>
-        <label>Server URL:</label>
-        <input type="text" id="serverUrl" value="ws://localhost:8080/api/ws/1" />
-        <button onclick="connect()">Connect</button>
-        <button onclick="disconnect()">Disconnect</button>
+      <label>Server URL:</label>
+      <input type="text" id="serverUrl" value="ws://localhost:8080/api/ws/1" />
+      <button onclick="connect()">Connect</button>
+      <button onclick="disconnect()">Disconnect</button>
     </div>
-    
+
     <div>
-        <label>JWT Token:</label>
-        <input type="text" id="token" placeholder="Your JWT token here" />
-        <input type="text" id="chatroomId" value="1" placeholder="Chatroom ID" />
-        <button onclick="authenticate()">Authenticate</button>
+      <label>JWT Token:</label>
+      <input type="text" id="token" placeholder="Your JWT token here" />
+      <input type="text" id="chatroomId" value="1" placeholder="Chatroom ID" />
+      <button onclick="authenticate()">Authenticate</button>
     </div>
-    
+
     <div>
-        <label>Message:</label>
-        <input type="text" id="messageInput" placeholder="Type your message here" />
-        <button onclick="sendMessage()">Send Message</button>
+      <label>Message:</label>
+      <input
+        type="text"
+        id="messageInput"
+        placeholder="Type your message here"
+      />
+      <button onclick="sendMessage()">Send Message</button>
     </div>
-    
+
+    <div>
+      <button onclick="getToken()">自动获取Token</button>
+      <button onclick="testApiCall()">测试API调用</button>
+    </div>
+
     <div id="messages"></div>
-    
+
     <script>
-        let ws = null;
-        let isAuthenticated = false;
-        
-        function connect() {
-            const url = document.getElementById('serverUrl').value;
-            ws = new WebSocket(url);
-            
-            ws.onopen = function(event) {
-                addMessage('Connected to WebSocket server', 'auth-message');
-            };
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                if (data.type === 'auth_success') {
-                    isAuthenticated = true;
-                    addMessage('Authentication successful!', 'auth-message');
-                } else if (data.type === 'message') {
-                    addMessage(`[${data.username}]: ${data.content}`, 'regular-message');
-                } else {
-                    addMessage(`Received: ${event.data}`, 'regular-message');
-                }
-            };
-            
-            ws.onclose = function(event) {
-                isAuthenticated = false;
-                addMessage('Connection closed', 'error-message');
-            };
-            
-            ws.onerror = function(error) {
-                addMessage('WebSocket error: ' + error, 'error-message');
-            };
+      let ws = null;
+      let isAuthenticated = false;
+
+      function connect() {
+        const url = document.getElementById("serverUrl").value;
+        ws = new WebSocket(url);
+
+        ws.onopen = function (event) {
+          addMessage("Connected to WebSocket server", "auth-message");
+        };
+
+        ws.onmessage = function (event) {
+          const data = JSON.parse(event.data);
+          if (data.type === "auth_success") {
+            isAuthenticated = true;
+            addMessage("Authentication successful!", "auth-message");
+          } else if (data.type === "message") {
+            addMessage(
+              `[${data.username}]: ${data.content}`,
+              "regular-message"
+            );
+          } else {
+            addMessage(`Received: ${event.data}`, "regular-message");
+          }
+        };
+
+        ws.onclose = function (event) {
+          isAuthenticated = false;
+          addMessage("Connection closed", "error-message");
+        };
+
+        ws.onerror = function (error) {
+          addMessage("WebSocket error: " + error, "error-message");
+        };
+      }
+
+      function disconnect() {
+        if (ws) {
+          ws.close();
+          ws = null;
+          isAuthenticated = false;
         }
-        
-        function disconnect() {
-            if (ws) {
-                ws.close();
-                ws = null;
-                isAuthenticated = false;
-            }
+      }
+
+      function authenticate() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          addMessage("Please connect to WebSocket first", "error-message");
+          return;
         }
-        
-        function authenticate() {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                addMessage('Please connect to WebSocket first', 'error-message');
-                return;
-            }
-            
-            const token = document.getElementById('token').value;
-            const chatroomId = parseInt(document.getElementById('chatroomId').value);
-            
-            if (!token) {
-                addMessage('Please enter a JWT token', 'error-message');
-                return;
-            }
-            
-            const authMessage = {
-                type: 'auth',
-                token: token,
-                chatroomId: chatroomId
-            };
-            
-            ws.send(JSON.stringify(authMessage));
-            addMessage('Sent authentication message', 'auth-message');
+
+        const token = document.getElementById("token").value;
+        const chatroomId = parseInt(
+          document.getElementById("chatroomId").value
+        );
+
+        if (!token) {
+          addMessage("Please enter a JWT token", "error-message");
+          return;
         }
-        
-        function sendMessage() {
-            if (!ws || ws.readyState !== WebSocket.OPEN) {
-                addMessage('Please connect to WebSocket first', 'error-message');
-                return;
-            }
-            
-            if (!isAuthenticated) {
-                addMessage('Please authenticate first', 'error-message');
-                return;
-            }
-            
-            const content = document.getElementById('messageInput').value;
-            if (!content) {
-                addMessage('Please enter a message', 'error-message');
-                return;
-            }
-            
-            const message = {
-                type: 'message',
-                content: content
-            };
-            
-            ws.send(JSON.stringify(message));
-            document.getElementById('messageInput').value = '';
+
+        const authMessage = {
+          type: "auth",
+          token: token,
+          chatroomId: chatroomId,
+        };
+
+        ws.send(JSON.stringify(authMessage));
+        addMessage("Sent authentication message", "auth-message");
+      }
+
+      function sendMessage() {
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          addMessage("Please connect to WebSocket first", "error-message");
+          return;
         }
-        
-        function addMessage(message, className) {
-            const messagesDiv = document.getElementById('messages');
-            const messageDiv = document.createElement('div');
-            messageDiv.className = className;
-            messageDiv.textContent = new Date().toLocaleTimeString() + ' - ' + message;
-            messagesDiv.appendChild(messageDiv);
-            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+        if (!isAuthenticated) {
+          addMessage("Please authenticate first", "error-message");
+          return;
         }
-        
-        // Allow sending messages with Enter key
-        document.getElementById('messageInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                sendMessage();
-            }
+
+        const content = document.getElementById("messageInput").value;
+        if (!content) {
+          addMessage("Please enter a message", "error-message");
+          return;
+        }
+
+        const message = {
+          type: "message",
+          content: content,
+        };
+
+        ws.send(JSON.stringify(message));
+        document.getElementById("messageInput").value = "";
+      }
+
+      function addMessage(message, className) {
+        const messagesDiv = document.getElementById("messages");
+        const messageDiv = document.createElement("div");
+        messageDiv.className = className;
+        messageDiv.textContent =
+          new Date().toLocaleTimeString() + " - " + message;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+      }
+
+      // Allow sending messages with Enter key
+      document
+        .getElementById("messageInput")
+        .addEventListener("keypress", function (e) {
+          if (e.key === "Enter") {
+            sendMessage();
+          }
         });
+
+      function getToken() {
+        // 提取JWT Token的函数，需要适配新的响应格式
+        const loginData = {
+          username: "admin",
+          password: "password123",
+        };
+
+        fetch("http://localhost:8080/api/login", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(loginData),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            // 适配新的响应格式
+            if (data.code === 1000) {
+              document.getElementById("token").value = data.data.token;
+              addMessage("登录成功，已自动填入Token", "auth-message");
+            } else {
+              addMessage("登录失败: " + data.messages, "error-message");
+            }
+          })
+          .catch((error) => {
+            addMessage("登录请求失败: " + error, "error-message");
+          });
+      }
+
+      function testApiCall() {
+        // 测试API调用，验证新的响应格式
+        const token = document.getElementById("token").value;
+        if (!token) {
+          addMessage("请先获取Token", "error-message");
+          return;
+        }
+
+        fetch("http://localhost:8080/api/profile", {
+          method: "GET",
+          headers: {
+            Authorization: "Bearer " + token,
+          },
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.code === 1000) {
+              addMessage(
+                "用户信息: " + JSON.stringify(data.data),
+                "auth-message"
+              );
+            } else {
+              addMessage("API调用失败: " + data.messages, "error-message");
+            }
+          })
+          .catch((error) => {
+            addMessage("API请求失败: " + error, "error-message");
+          });
+      }
     </script>
-</body>
+  </body>
 </html>

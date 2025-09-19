@@ -3,7 +3,7 @@ package controllers
 import (
 	"chatapp/models"
 	"chatapp/service"
-	"net/http"
+	"chatapp/utils"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,17 +33,17 @@ type LoginResponse struct {
 func (ctrl *AuthController) Login(c *gin.Context) {
 	var req LoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		utils.ValidationErrorResponse(c, err.Error())
 		return
 	}
 
 	user, token, err := ctrl.authService.Login(req.Username, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		utils.UnauthorizedResponse(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, LoginResponse{
+	utils.SuccessResponse(c, LoginResponse{
 		Token: token,
 		User:  *user,
 	})
@@ -55,11 +55,11 @@ func (ctrl *AuthController) GetProfile(c *gin.Context) {
 
 	user, err := ctrl.authService.GetUserProfile(userID.(uint))
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		utils.NotFoundResponse(c, err.Error())
 		return
 	}
 
-	c.JSON(http.StatusOK, user)
+	utils.SuccessResponse(c, user)
 }
 
 // Logout handles user logout
@@ -70,15 +70,14 @@ func (ctrl *AuthController) Logout(c *gin.Context) {
 
 	userID, exists := c.Get("user_id")
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		utils.UnauthorizedResponse(c, "User not authenticated")
 		return
 	}
 
 	// Optional: Add any logout-specific business logic here
 	// For example: logging the logout event, clearing user sessions, etc.
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logout successful",
+	utils.SuccessResponseWithMessage(c, "Logout successful", gin.H{
 		"user_id": userID,
 	})
 }
