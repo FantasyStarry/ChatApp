@@ -132,7 +132,6 @@ profile.cov
 docs/_build/
 
 # Local storage
-storage/
 uploads/
 
 # Cache
