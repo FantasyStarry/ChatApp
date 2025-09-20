@@ -144,6 +144,9 @@ func (c *Client) readPump() {
 			break
 		}
 
+		// 添加调试日志
+		log.Printf("收到WebSocket消息: Type=%s, Content=%s, ChatRoomID=%d", wsMsg.Type, wsMsg.Content, wsMsg.ChatRoomID)
+
 		// Handle authentication message
 		if wsMsg.Type == "auth" {
 			if err := c.handleAuthMessage(wsMsg); err != nil {
@@ -165,9 +168,12 @@ func (c *Client) readPump() {
 		var saveErr error
 
 		// Save message to database using service layer based on message type
+		log.Printf("消息类型判断: wsMsg.Type=%s", wsMsg.Type)
 		if wsMsg.Type == "file" {
+			log.Printf("调用CreateFileMessage方法")
 			message, saveErr = c.hub.messageService.CreateFileMessage(wsMsg.Content, c.userID, c.chatRoomID)
 		} else {
+			log.Printf("调用CreateMessage方法")
 			message, saveErr = c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, c.chatRoomID)
 		}
 		
