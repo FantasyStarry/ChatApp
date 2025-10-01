@@ -55,6 +55,7 @@ func (s *messageService) CreateMessage(content string, userID, chatRoomID uint) 
 		Content:    content,
 		UserID:     userID,
 		ChatRoomID: chatRoomID,
+		Type:       "message", // Default type is message
 	}
 
 	err = s.messageRepo.Create(message)

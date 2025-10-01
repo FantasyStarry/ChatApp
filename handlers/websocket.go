@@ -161,16 +161,33 @@ func (c *Client) readPump() {
 			return
 		}
 
+		// Use chatRoomID from the WebSocket message if provided, otherwise use the one from client context
+		chatRoomID := c.chatRoomID
+		if wsMsg.ChatRoomID != 0 {
+			chatRoomID = wsMsg.ChatRoomID
+		}
+
 		// Save message to database using service layer
-		message, err := c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, c.chatRoomID)
+		message, err := c.hub.messageService.CreateMessage(wsMsg.Content, c.userID, chatRoomID)
 		if err != nil {
 			log.Printf("Failed to save message: %v", err)
 			continue
 		}
 
+		// Set message type - default to "message" if not specified in WSMessage
+		messageType := "message"
+		if wsMsg.Type != "" {
+			messageType = wsMsg.Type
+		}
+
+		// Update message type in database
+		message.Type = messageType
+		// We're not updating the database here as it would require a new method
+		// For now, we'll just use the type in the WebSocket response
+
 		// Create response message
 		responseMsg := models.WSMessage{
-			Type:       "message",
+			Type:       messageType,
 			Content:    message.Content,
 			UserID:     message.UserID,
 			Username:   message.User.Username,

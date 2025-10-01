@@ -8,11 +8,12 @@ import (
 
 type Message struct {
 	ID         uint           `json:"id" gorm:"primaryKey"`
-	Content    string         `json:"content" gorm:"not null"`
+	Content    string         `json:"content" gorm:"not null;type:text"`
 	UserID     uint           `json:"user_id"`
 	User       User           `json:"user" gorm:"foreignKey:UserID"`
-ChatRoomID uint           `json:"chat_room_id" gorm:"column:chat_room_id"`
+	ChatRoomID uint           `json:"chat_room_id" gorm:"column:chat_room_id"`
 	ChatRoom   ChatRoom       `json:"chatroom,omitempty" gorm:"foreignKey:ChatRoomID"`
+	Type       string         `json:"type" gorm:"type:varchar(20);default:'message';not null"`
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
 	DeletedAt  gorm.DeletedAt `json:"-" gorm:"index"`

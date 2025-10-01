@@ -157,9 +157,12 @@
           return;
         }
 
+        const chatroomId = parseInt(document.getElementById("chatroomId").value);
+
         const message = {
           type: "message",
           content: content,
+          chatRoomID: chatroomId
         };
 
         ws.send(JSON.stringify(message));
