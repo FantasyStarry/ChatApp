@@ -189,18 +189,6 @@ func (c *Client) readPump() {
 		// For now, we'll just use the type in the WebSocket response
 
 		// Create response message
-		responseMsg := map[string]interface{}{
-			"type": "message",
-			"message": map[string]interface{}{
-				"id":          message.ID,
-				"content":     message.Content,
-				"user_id":     message.UserID,
-				"user":        message.User,
-				"chatroom_id": message.ChatRoomID,
-				"chatroom":    message.ChatRoom,
-				"created_at":  message.CreatedAt,
-				"type":        message.Type,
-			},
 		responseMsg := models.WSMessage{
 			Type:       messageType,
 			Content:    message.Content,
