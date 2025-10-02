@@ -144,6 +144,9 @@ func (c *Client) readPump() {
 			break
 		}
 
+		// 添加调试日志
+		log.Printf("收到WebSocket消息: Type=%s, Content=%s, ChatRoomID=%d", wsMsg.Type, wsMsg.Content, wsMsg.ChatRoomID)
+
 		// Handle authentication message
 		if wsMsg.Type == "auth" {
 			if err := c.handleAuthMessage(wsMsg); err != nil {
@@ -186,6 +189,18 @@ func (c *Client) readPump() {
 		// For now, we'll just use the type in the WebSocket response
 
 		// Create response message
+		responseMsg := map[string]interface{}{
+			"type": "message",
+			"message": map[string]interface{}{
+				"id":          message.ID,
+				"content":     message.Content,
+				"user_id":     message.UserID,
+				"user":        message.User,
+				"chatroom_id": message.ChatRoomID,
+				"chatroom":    message.ChatRoom,
+				"created_at":  message.CreatedAt,
+				"type":        message.Type,
+			},
 		responseMsg := models.WSMessage{
 			Type:       messageType,
 			Content:    message.Content,
@@ -213,7 +228,7 @@ func (c *Client) handleAuthMessage(wsMsg models.WSMessage) error {
 	// Set client authentication details
 	c.userID = claims.UserID
 	c.username = claims.Username
-	c.chatRoomID = wsMsg.ChatRoomID
+	// c.chatRoomID = wsMsg.ChatRoomID
 	c.isAuthenticated = true
 
 	log.Printf("Client authenticated: user_id=%d, username=%s, chatroom_id=%d",
