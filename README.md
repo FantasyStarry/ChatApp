@@ -107,6 +107,9 @@ go run main.go
 - ✅ 搜索功能
 - ✅ 加载状态处理
 - ✅ 防Hydration错误处理
+- ✅ 完整的API客户端
+- ✅ WebSocket实时通信
+- ✅ 前后端数据交互
 
 ### 后端功能
 - ✅ RESTful API
@@ -135,8 +138,33 @@ pnpm dlx shadcn@latest add [component-name]
 ### API 集成
 
 前端通过 REST API 和 WebSocket 与后端通信：
-- REST API: `http://localhost:8080/api/v1`
-- WebSocket: `ws://localhost:8080/ws`
+- REST API: `http://localhost:8080/api`
+- WebSocket: `ws://localhost:8080/ws/:chatroom_id`
+
+#### 主要API接口
+- **用户认证**:
+  - `POST /api/login` - 用户登录
+  - `GET /api/profile` - 获取用户信息
+  - `POST /api/logout` - 用户登出
+
+- **聊天室管理**:
+  - `GET /api/chatrooms` - 获取聊天室列表
+  - `POST /api/chatrooms` - 创建聊天室
+  - `GET /api/chatrooms/:id` - 获取聊天室详情
+  - `GET /api/chatrooms/:id/messages` - 获取聊天室消息
+
+- **文件管理**:
+  - `POST /api/files/upload` - 上传文件
+  - `GET /api/files/download/:id` - 下载文件
+  - `GET /api/files/chatroom/:chatroom_id` - 获取聊天室文件
+
+#### WebSocket实时通信
+- **连接地址**: `ws://localhost:8080/ws/:chatroom_id`
+- **支持功能**:
+  - 动态连接不同聊天室
+  - 自动重连机制
+  - 实时消息推送
+  - 用户状态变化通知
 
 ## 部署
 

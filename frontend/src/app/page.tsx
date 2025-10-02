@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -8,40 +8,143 @@ import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Search, Plus, MoreHorizontal, Phone, Video, Users } from 'lucide-react'
+import { WebSocketService } from '@/lib/api'
 
 interface Message {
   id: number
   text: string
-  sender: 'user' | 'system'
+  sender: 'user' | 'system' | string
   timestamp: Date
+  userId?: string
+  username?: string
 }
+
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([])
+  const [currentChatroom] = useState<string>('1')
   const [newMessage, setNewMessage] = useState('')
   const [isMounted, setIsMounted] = useState(false)
+  const wsServiceRef = useRef<WebSocketService | null>(null)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // 滚动到最新消息
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
 
   useEffect(() => {
     setIsMounted(true)
-    // 模拟初始消息
-    setMessages([
-      { id: 1, text: '你好！欢迎使用聊天应用', sender: 'system', timestamp: new Date() },
-      { id: 2, text: '这是一个类似钉钉的聊天界面', sender: 'system', timestamp: new Date(Date.now() - 300000) },
-    ])
+    initializeApp()
   }, [])
 
-  const handleSendMessage = () => {
-    if (newMessage.trim() && isMounted) {
-      setMessages([
-        ...messages,
-        {
-          id: messages.length + 1,
-          text: newMessage,
-          sender: 'user',
+  const initializeApp = async () => {
+    try {
+      // 模拟获取消息数据
+      const mockMessages: Message[] = [
+        { 
+          id: 1, 
+          text: '你好！欢迎使用聊天应用', 
+          sender: 'system', 
           timestamp: new Date(),
+          username: '系统'
         },
-      ])
+        { 
+          id: 2, 
+          text: '这是一个类似钉钉的聊天界面', 
+          sender: 'system', 
+          timestamp: new Date(Date.now() - 300000),
+          username: '系统'
+        }
+      ]
+      setMessages(mockMessages)
+
+      // 初始化WebSocket连接
+      initializeWebSocket()
+
+    } catch (error) {
+      console.error('初始化应用失败:', error)
+    }
+  }
+
+  const initializeWebSocket = () => {
+    const wsService = new WebSocketService(
+      // 处理接收到的消息
+      (data: unknown) => {
+        console.log('收到WebSocket消息:', data)
+        
+        try {
+          const messageData = data as { type: string; message?: Record<string, unknown> }
+          
+          if (messageData.type === 'new_message' && messageData.message) {
+            const message = messageData.message
+            const newMsg: Message = {
+              id: Number(message.id) || Date.now(),
+              text: String(message.content || ''),
+              sender: String(message.userId) === 'current-user' ? 'user' : String(message.userId || 'system'),
+              timestamp: new Date(String(message.timestamp || Date.now())),
+              userId: String(message.userId || ''),
+              username: String(message.username || '用户')
+            }
+            setMessages(prev => [...prev, newMsg])
+          }
+          
+          if (messageData.type === 'user_joined' || messageData.type === 'user_left') {
+            // 处理用户加入/离开通知
+            console.log('用户状态变化:', messageData)
+          }
+        } catch (error) {
+          console.error('处理WebSocket消息时出错:', error)
+        }
+      },
+      // 错误处理
+      (error) => {
+        console.error('WebSocket错误:', error)
+      },
+      // 连接关闭处理
+      (event) => {
+        console.log('WebSocket连接关闭:', event)
+      }
+    )
+
+    wsServiceRef.current = wsService
+    wsService.connect(currentChatroom)
+  }
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !isMounted) return
+
+    try {
+      // 如果是真实环境，调用API发送消息
+      // await messageApi.sendMessage(currentChatroom, newMessage)
+      
+      // 模拟发送消息
+      const newMsg: Message = {
+        id: messages.length + 1,
+        text: newMessage,
+        sender: 'user',
+        timestamp: new Date(),
+        username: '当前用户'
+      }
+
+      // 通过WebSocket发送消息
+      if (wsServiceRef.current) {
+        wsServiceRef.current.sendMessage({
+          type: 'send_message',
+          chatroomId: currentChatroom,
+          content: newMessage
+        })
+      }
+
+      setMessages(prev => [...prev, newMsg])
       setNewMessage('')
+
+    } catch (error) {
+      console.error('发送消息失败:', error)
     }
   }
 
